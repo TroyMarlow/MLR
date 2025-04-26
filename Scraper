@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+from ics import Calendar, Event
+from datetime import datetime
+
+# URL of the Major League Rugby schedule page
+MLR_SCHEDULE_URL = "https://www.majorleague.rugby/schedule/"
+
+def fetch_schedule():
+    """Fetches and parses the schedule from the MLR website."""
+    response = requests.get(MLR_SCHEDULE_URL)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    
+    # Example: Locate match details (Modify the selectors based on the website's structure)
+    matches = []
+    match_elements = soup.select('div.match')  # Adjust selector to match the actual schedule table
+    for match in match_elements:
+        date = match.select_one('.date').get_text(strip=True)  # Replace with actual date selector
+        time = match.select_one('.time').get_text(strip=True)  # Replace with actual time selector
+        teams = match.select_one('.teams').get_text(strip=True)  # Replace with actual teams selector
+        
+        # Parse date and time into a datetime object
+        datetime_str = f"{date} {time}"
+        match_datetime = datetime.strptime(datetime_str, "%b %d %Y %I:%M %p")  # Adjust format to match website
+        
+        matches.append({
+            "datetime": match_datetime,
+            "teams": teams
+        })
+    return matches
+
+def create_ics(matches, output_file="mlr_schedule.ics"):
+    """Generates an .ics file from match data."""
+    calendar = Calendar()
+    
+    for match in matches:
+        event = Event()
+        event.name = match["teams"]
+        event.begin = match["datetime"].isoformat()
+        calendar.events.add(event)
+    
+    with open(output_file, 'w') as f:
+        f.writelines(calendar)
+    print(f"ICS file created: {output_file}")
+
+def main():
+    # Fetch the schedule
+    matches = fetch_schedule()
+    if not matches:
+        print("No matches found or parsing failed. Please check the website structure.")
+        return
+
+    # Create an .ics file
+    create_ics(matches)
+
+if __name__ == "__main__":
+    main()
